@@ -1,3 +1,5 @@
+use std::env;
+
 use anyhow::bail;
 use axum::extract::Request;
 use hmac::{Hmac, Mac, digest::FixedOutput};
@@ -5,18 +7,19 @@ use sha2::{Digest, Sha256};
 
 type HmacSha256 = Hmac<Sha256>;
 
-const CLIENT_KEY_ID: &'static str = "test1";
-const CLIENT_SECRET: &'static str = "test2";
 const CLIENT_ALGORITHM: &'static str = "AWS4-HMAC-SHA256";
 
 pub fn check_auth( req: &Request ) -> anyhow::Result<()>{
+  let client_key_id = env::var("S3_CLIENT_KEY_ID").unwrap();
+  let client_secret = env::var("S3_CLIENT_SECRET").unwrap();
+
   let headers = req.headers();
 
   let Some(auth) = headers.get("Authorization") else { bail!("No authorization header") };
   let auth = parse_auth_header(auth.to_str()?)?;
 
   if auth.algorithm != CLIENT_ALGORITHM{ bail!("Unsupported Algorithm") }
-  if auth.key_id != CLIENT_KEY_ID{ bail!("Invalid KEY ID") }
+  if auth.key_id != client_key_id{ bail!("Invalid KEY ID") }
 
   let Some(x_amz_date) = headers.get("x-amz-date") else { bail!("No X-AMZ-DATE header.") };
   let x_amz_date = x_amz_date.to_str()?;
@@ -27,7 +30,7 @@ pub fn check_auth( req: &Request ) -> anyhow::Result<()>{
     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" // Empty string SHA256 hashed
   };
 
-  let mut date_key = HmacSha256::new_from_slice(format!("AWS4{}", CLIENT_SECRET).as_bytes())?;
+  let mut date_key = HmacSha256::new_from_slice(format!("AWS4{}", client_secret).as_bytes())?;
   date_key.update(auth.date.as_bytes());
   let date_key = date_key.finalize_fixed();
 

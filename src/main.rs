@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{env, sync::Arc};
 
 use axum::{Extension, Router, extract::DefaultBodyLimit, routing::get};
 use tokio::net::TcpListener;
@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()>{
     .layer(TraceLayer::new_for_http())
     .layer(Extension(Arc::new(UploadManager::new())));
 
-  let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
+  let listener = TcpListener::bind(format!("0.0.0.0:{}", env::var("PORT").unwrap_or("8080".to_owned()))).await.unwrap();
   axum::serve(listener, app).await.unwrap();
 
   Ok(())
