@@ -6,7 +6,7 @@ Want to use BunnyCDN's storage with S3? Here's a really janky, duct-tape fix.
 
 This is a local S3 server that converts and proxies all commands to bunny.
 
-**It is *NOT* a full implementation of S3**
+**It is *NOT* a full implementation of S3** ( I wrote the core of it in a day... be nice D: )
 
 ## How do I use it?
 
