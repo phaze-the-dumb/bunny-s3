@@ -14,7 +14,10 @@ pub async fn list_objects( bucket: String, delimiter: String, prefix: String ) -
       if file.is_directory{
         folders.push(Prefix{ prefix: file.name });
       } else{
-        files.push(StorageObject { key: file.name });
+        files.push(StorageObject {
+          key: file.name,
+          size: file.size
+        });
       }
     }
 
