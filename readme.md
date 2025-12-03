@@ -6,6 +6,8 @@ Want to use BunnyCDN's storage with S3? Here's a really janky, duct-tape fix.
 
 This is a local S3 server that converts and proxies all commands to bunny.
 
+**It is *NOT* a full implementation of S3**
+
 ## How do I use it?
 
 1. Make a folder for it
@@ -87,7 +89,7 @@ WantedBy=multi-user.target
 
 Point your S3 client to `localhost:8080` (or whatever port you set it to) and set the "key id" and "secret" fields to the values you specified in your ENV files.
 
-**You MUST set your url style to PATH. virtual-host style currently is not implemented**
+**You *MUST* set your url style to *PATH*. virtual-host style currently is not implemented**
 
 6. Got any issues?
 
