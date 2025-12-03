@@ -1,6 +1,6 @@
-use axum::http::{Response, StatusCode};
+use axum::{http::StatusCode, response::Response};
 
-pub fn list_buckets() -> Response<String>{
+pub fn list_buckets() -> Response{
   Response::builder()
     .status(StatusCode::OK)
     .header("Content-Type", "application/xml")
@@ -8,10 +8,10 @@ pub fn list_buckets() -> Response<String>{
 <ListAllMyBucketsResult>
   <Buckets>
     <Bucket>
-      <Name>test</Name>
+      <Name>phazecdn</Name>
     </Bucket>
   </Buckets>
   <Prefix>/</Prefix>
-</ListAllMyBucketsResult>".to_owned())
+</ListAllMyBucketsResult>".into())
     .unwrap()
 }

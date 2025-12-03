@@ -55,7 +55,12 @@ pub fn check_auth( req: &Request ) -> anyhow::Result<()>{
   }
 
   for query in req.uri().query().unwrap_or("").split("&"){
-    canonical_query.push(query);
+    if query == ""{ continue; }
+    if query.contains('='){
+      canonical_query.push(query.to_owned());
+    } else{
+      canonical_query.push(format!("{query}="));
+    }
   }
 
   canonical_headers.sort();

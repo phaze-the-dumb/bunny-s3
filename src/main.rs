@@ -1,10 +1,11 @@
-use axum::{Router, routing::{get, put}};
+use axum::{Router, extract::DefaultBodyLimit, routing::get};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
 use tracing::level_filters::LevelFilter;
 
 mod util;
 mod auth;
+mod bunny;
 mod routes;
 mod structs;
 mod actions;
@@ -20,6 +21,7 @@ async fn main() -> anyhow::Result<()>{
 
     .fallback(routes::file::all)
 
+    .layer(DefaultBodyLimit::max(100_000_000)) // 100MB
     .layer(TraceLayer::new_for_http());
 
   let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();

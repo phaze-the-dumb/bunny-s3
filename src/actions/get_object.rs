@@ -1,10 +1,10 @@
-use std::fs;
+use axum::{http::StatusCode, response::Response};
 
-use axum::http::{Response, StatusCode};
+use crate::bunny::get_bunny_objects;
 
-pub fn get_object<'a>( path: &'a str ) -> Response<String>{
+pub async fn get_object( bucket: String, path: String ) -> Response{
   Response::builder()
     .status(StatusCode::OK)
-    .body(fs::read_to_string(format!("data/{path}")).unwrap())
+    .body(get_bunny_objects(bucket, path).await.unwrap().into())
     .unwrap()
 }

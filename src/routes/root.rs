@@ -1,8 +1,8 @@
-use axum::{extract::Request, http::{Response, StatusCode}};
+use axum::{extract::Request, http::StatusCode, response::Response};
 
 use crate::{actions::list_buckets::list_buckets, auth::check_auth, util::error::errors};
 
-pub async fn get( req: Request ) -> Response<String>{
+pub async fn get( req: Request ) -> Response{
   let auth = check_auth(&req);
   if let Err(err) = auth{
     dbg!(&err);

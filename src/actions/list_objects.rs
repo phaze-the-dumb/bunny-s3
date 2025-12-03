@@ -1,24 +1,20 @@
-use std::fs;
-
-use axum::http::{Response, StatusCode};
+use axum::{http::StatusCode, response::Response};
 use url_encor::Encoder;
 
-use crate::structs::{list_bucket_result::ListBucketResult, prefixes::Prefix, storage_object::StorageObject};
+use crate::{bunny, structs::{list_bucket_result::ListBucketResult, prefixes::Prefix, storage_object::StorageObject}};
 
-pub fn list_objects( bucket: String, delimiter: String, prefix: String ) -> Response<String>{
+pub async fn list_objects( bucket: String, delimiter: String, prefix: String ) -> Response{
   let prefix = prefix.url_decode();
 
-  if let Ok(dir_contents) = fs::read_dir(format!("data/{bucket}/{prefix}")){
+  if let Ok(dir_contents) = bunny::list_bunny_objects(bucket.clone(), prefix.clone()).await{
     let mut files = vec![];
     let mut folders = vec![];
 
     for file in dir_contents{
-      let file = file.unwrap();
-
-      if file.metadata().unwrap().is_file(){
-        files.push(StorageObject { key: file.file_name().to_str().unwrap().to_owned() });
+      if file.is_directory{
+        folders.push(Prefix{ prefix: file.name });
       } else{
-        folders.push(Prefix{ prefix: file.file_name().to_str().unwrap().to_owned() });
+        files.push(StorageObject { key: file.name });
       }
     }
 
@@ -33,7 +29,7 @@ pub fn list_objects( bucket: String, delimiter: String, prefix: String ) -> Resp
     Response::builder()
       .status(StatusCode::OK)
       .header("Content-Type", "application/xml")
-      .body(serde_xml_rs::to_string(&doc).unwrap())
+      .body(serde_xml_rs::to_string(&doc).unwrap().into())
       .unwrap()
   } else{
     Response::builder()
@@ -44,7 +40,7 @@ pub fn list_objects( bucket: String, delimiter: String, prefix: String ) -> Resp
     <Prefix>{prefix}</Prefix>
     <Delimiter>{delimiter}</Delimiter>
     <Name>{bucket}</Name>
-  </ListBucketResult>"))
+  </ListBucketResult>").into())
       .unwrap()
   }
 }
