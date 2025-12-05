@@ -20,7 +20,7 @@ cd bunny-s3
 2. Download bunny-s3 binary
 
 ```bash
-wget https://github.com/phaze-the-dumb/bunny-s3/releases/download/0.1.0/bunny-s3
+wget https://github.com/phaze-the-dumb/bunny-s3/releases/download/latest/bunny-s3
 ```
 
 3. Create your `.env` file
