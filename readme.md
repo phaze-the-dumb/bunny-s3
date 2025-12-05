@@ -58,6 +58,23 @@ S3_CLIENT_SECRET=my-secret-secret-shhh-dont-tell-anyone
 PORT=8080
 ```
 
+**Note: if your client uses virtual-path url style you *should* include the `HOSTNAME` env variable**
+
+e.g.
+
+```
+ENDPOINT=<STORAGE ZONE REGION>.storage.bunnycdn.com
+BUCKET_NAME=<STORAGE ZONE NAME>
+API_TOKEN=<READ-WRITE BUNNY TOKEN HERE>
+
+S3_CLIENT_KEY_ID=<RANDOM S3 CLIENT KEY ID>
+S3_CLIENT_SECRET=<RANDOM S3 CLIENT SECRET>
+
+PORT=8080
+HOSTNAME=localhost
+```
+
+
 4. Run it
 
 ```bash
@@ -88,8 +105,6 @@ WantedBy=multi-user.target
 5. Connect to it using your S3 Client
 
 Point your S3 client to `localhost:8080` (or whatever port you set it to) and set the "key id" and "secret" fields to the values you specified in your ENV files.
-
-**You *MUST* set your url style to *PATH*. virtual-host style currently is not implemented**
 
 6. Got any issues?
 
