@@ -1,15 +1,26 @@
 use std::{collections::HashMap, sync::Arc, thread, time::Duration};
 
 use anyhow::bail;
+use async_stream::stream;
 use chrono::Utc;
+use futures_util::Stream;
 use nanoid::nanoid;
-use tokio::sync::Mutex;
+use reqwest::Body;
+use tokio::sync::{Mutex, mpsc::{Receiver, Sender, channel}};
 
 use crate::bunny;
 
 #[derive(Clone)]
 pub struct UploadManager{
-  uploads: Arc<Mutex<HashMap<String, ( i64, Vec<( usize, Vec<u8> )>, String, String )>>>
+  uploads: Arc<Mutex<HashMap<
+    String,
+    ( i64, Sender<UploadChunk>, Arc<Mutex<Receiver<u8>>> )>>>
+}
+
+pub enum UploadChunk{
+  Chunk(Vec<u8>),
+  End,
+  Abort
 }
 
 impl UploadManager{
@@ -33,7 +44,7 @@ impl UploadManager{
     let now = Utc::now().timestamp();
 
     for id in uploads.clone().keys(){
-      let ( time, _, _, _ ) = uploads.get(id).unwrap();
+      let ( time, _, _ ) = uploads.get(id).unwrap();
 
       if now - *time > 3600{
         uploads.remove(id).unwrap();
@@ -47,14 +58,40 @@ impl UploadManager{
     let now = Utc::now().timestamp();
     let id = nanoid!();
 
-    uploads.insert(id.clone(), ( now, vec![], bucket, path ));
+    let ( sender, recv ) = channel(128);
+    let ( finished_sender, finished_recv ) = channel(1);
+
+    tokio::spawn(async move {
+      let aborted = Arc::new(Mutex::new(false));
+
+      let stream = create_file_stream(recv, aborted.clone());
+      let body = Body::wrap_stream(stream);
+
+      if bunny::upload_bunny_objects(bucket.clone(), path.clone(), body).await.is_ok(){
+        dbg!(&aborted);
+        if *aborted.lock().await{
+          let _ = bunny::delete_bunny_objects(bucket.clone(), path.clone()).await;
+        }
+
+        finished_sender.send(0u8).await.unwrap();
+      } else{
+        dbg!(&aborted);
+        if *aborted.lock().await{
+          let _ = bunny::delete_bunny_objects(bucket.clone(), path.clone()).await;
+        }
+
+        finished_sender.send(0u8).await.unwrap();
+      }
+    });
+
+    uploads.insert(id.clone(), ( now, sender, Arc::new(Mutex::new(finished_recv)) ));
     id
   }
 
-  pub async fn upload_multipart(&self, part_number: usize, upload_id: String, upload_buf: Vec<u8>) -> anyhow::Result<()>{
+  pub async fn upload_multipart(&self, upload_id: String, upload_buf: Vec<u8>) -> anyhow::Result<()>{
     let mut uploads = self.uploads.lock().await;
-    if let Some(( _, buf, _, _ )) = uploads.get_mut(&upload_id){
-      buf.push(( part_number, upload_buf ));
+    if let Some(( _, sender, _ )) = uploads.get_mut(&upload_id){
+      sender.send(UploadChunk::Chunk(upload_buf)).await.unwrap();
       Ok(())
     } else{
       bail!("Invalid Upload ID");
@@ -62,23 +99,38 @@ impl UploadManager{
   }
 
   pub async fn complete_multipart(&self, upload_id: String) -> anyhow::Result<()>{
-    // TODO: Please find a way to actually make this streamed
-    // Perhaps https://crates.io/crates/async-stream ?
-
     let mut uploads = self.uploads.lock().await;
-    if let Some(( _, buf, bucket, key )) = uploads.get_mut(&upload_id){
-      buf.sort_by(|a, b| a.0.cmp(&b.0));
+    if let Some(( _, sender, finished )) = uploads.remove(&upload_id){
+      sender.send(UploadChunk::End).await.unwrap();
+      finished.lock().await.recv().await.unwrap();
 
-      let mut bytes = vec![];
-      for ( _, chunk ) in buf{ bytes.append(chunk); }
-
-      if bunny::upload_bunny_objects_unstreamed(bucket.clone(), key.clone(), bytes).await.is_ok(){
-        Ok(())
-      } else{
-        bail!("Failed Upload");
-      }
+      Ok(())
     } else{
       bail!("Invalid Upload ID");
+    }
+  }
+
+  pub async fn abort_multipart(&self, upload_id: String) -> anyhow::Result<()>{
+    let mut uploads = self.uploads.lock().await;
+    if let Some(( _, sender, _ )) = uploads.remove(&upload_id){
+      sender.send(UploadChunk::Abort).await.unwrap();
+    }
+
+    Ok(()) // Return Ok if it aborted or not, if the upload isn't running, then it's already aborted
+  }
+}
+
+fn create_file_stream( mut recv: Receiver<UploadChunk>, aborted: Arc<Mutex<bool>> ) -> impl Stream<Item = anyhow::Result<Vec<u8>>> {
+  stream! {
+    while let Some(chunk) = recv.recv().await{
+      match chunk{
+        UploadChunk::Chunk(data) => yield Ok(data),
+        UploadChunk::End => break,
+        UploadChunk::Abort => {
+          *aborted.lock().await = true;
+          break
+        }
+      }
     }
   }
 }

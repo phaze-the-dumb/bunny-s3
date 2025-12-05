@@ -6,3 +6,4 @@ pub mod delete_object;
 pub mod create_multipart_upload;
 pub mod upload_part;
 pub mod complete_multipart_upload;
+pub mod abort_multipart_upload;

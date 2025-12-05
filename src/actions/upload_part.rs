@@ -7,7 +7,6 @@ use crate::upload_manager::UploadManager;
 
 pub async fn upload_part(
   req: Request,
-  part_number: usize,
   upload_id: String,
   upload_manager: Arc<UploadManager>
 ) -> Response{
@@ -19,7 +18,7 @@ pub async fn upload_part(
     bytes.append(&mut part.to_vec());
   }
 
-  if upload_manager.upload_multipart(part_number, upload_id, bytes).await.is_ok(){
+  if upload_manager.upload_multipart(upload_id, bytes).await.is_ok(){
     Response::builder()
       .status(StatusCode::OK)
       .body("".into())
