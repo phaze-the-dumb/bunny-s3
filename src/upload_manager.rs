@@ -61,7 +61,10 @@ impl UploadManager{
     }
   }
 
-  pub async fn complete_multipart(&self, upload_id: String) -> anyhow::Result<()>{ // TODO: Please find a way to actually make this streamed
+  pub async fn complete_multipart(&self, upload_id: String) -> anyhow::Result<()>{
+    // TODO: Please find a way to actually make this streamed
+    // Perhaps https://crates.io/crates/async-stream ?
+
     let mut uploads = self.uploads.lock().await;
     if let Some(( _, buf, bucket, key )) = uploads.get_mut(&upload_id){
       buf.sort_by(|a, b| a.0.cmp(&b.0));

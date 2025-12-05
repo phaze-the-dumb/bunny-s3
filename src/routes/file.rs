@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 
 use axum::{Extension, extract::{Query, Request}, http::{Method, StatusCode}, response::Response};
 
@@ -17,7 +17,21 @@ pub async fn all(
   } else{
     let mut uri_path = req.uri().path().split("/");
 
-    let bucket = uri_path.nth(0).unwrap().to_owned();
+    let bucket = if let Some(host_header) = req.headers().get("host"){
+      let host_header = host_header.to_str().unwrap().to_owned();
+      let host_header = host_header.split(":").nth(0).unwrap(); // Remove port from host header
+
+      let host = env::var("HOSTNAME").unwrap_or("localhost".to_owned());
+
+      if host_header == host{
+        uri_path.nth(0).unwrap().to_owned()
+      } else{
+        host_header.replace(&format!(".{host}"), "")
+      }
+    } else{
+      "".to_owned()
+    };
+
     let path = uri_path.collect::<Vec<_>>().join("/");
 
     match req.method().clone(){
